@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"io/ioutil"
@@ -9,7 +11,7 @@ import (
 	//"github.com/labstack/echo/v4/middleware"
 )
 
-const yqApi = `https://c.m.163.com/ug/api/wuhan/app/data/list-total?t=330415245809`
+const yqApi = `http://c.m.163.com/ug/api/wuhan/app/data/list-total?t=330415245809`
 
 func main() {
 	var t T
@@ -17,18 +19,26 @@ func main() {
 	e.HTTPErrorHandler = CustomPErrorHandler
 	conf := e.Group("3rd")
 	conf.GET("/list", func(c echo.Context) error {
-		get, err := http.Get(yqApi)
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		response, err := client.Get(yqApi)
 		if err != nil {
 			return err
 		}
-		all, err := ioutil.ReadAll(get.Body)
-		err = json.Unmarshal(all, &t)
+		if response.StatusCode != http.StatusOK {
+			return errors.New("kkk")
+		}
+		readAll, err := ioutil.ReadAll(response.Body)
 		if err != nil {
 			return err
 		}
+		err = json.Unmarshal(readAll, &t)
 		if err != nil {
 			return err
 		}
+
 		return c.JSON(http.StatusOK, t)
 	})
 	err := e.Start(":14901")
